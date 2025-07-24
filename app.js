@@ -5,7 +5,7 @@ const path = require("path")
 const { exec } = require("child_process")
 
 const app = express()
-const PORT = 3000
+const PORT = 1000
 
 // Middleware to parse JSON and raw body for webhook signature verification
 app.use(
