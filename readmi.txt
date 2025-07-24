@@ -1,0 +1,21 @@
+install
+curl -fsSL http://localhost:3000/install.sh | bash
+
+
+sudo systemctl daemon-reexec
+sudo systemctl daemon-reload
+sudo systemctl restart cicd-server
+sudo systemctl status cicd-server
+sudo systemctl stop cicd-server
+
+sudo npm install -g n
+sudo n stable
+
+revmove
+
+sudo systemctl stop cicd-server
+sudo systemctl disable cicd-server
+
+sudo rm /etc/systemd/system/cicd-server.service
+sudo systemctl daemon-reexec
+sudo systemctl daemon-reload

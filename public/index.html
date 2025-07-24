@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CI/CD Dashboard</title>
+  <link rel="stylesheet" href="/style.css">
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2 class="logo"><i class="fas fa-rocket"></i> CI/CD</h2>
+        <button id="theme-toggle" class="button icon-button" aria-label="Toggle dark mode">
+            <i class="fas fa-moon"></i>
+        </button>
+      </div>
+      <nav class="sidebar-nav">
+        <ul>
+          <li><a href="#" id="nav-dashboard" class="active" data-section="dashboard-overview" data-title="Dashboard Overview"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+          <li><a href="#" id="nav-projects" data-section="projects-management" data-title="Project Management"><i class="fas fa-folder-open"></i> Projects</a></li>
+          <li><a href="#" id="nav-logs" data-section="logs-viewer" data-title="Full Log History"><i class="fas fa-clipboard-list"></i> Logs</a></li>
+        </ul>
+      </nav>
+      <div class="sidebar-footer">
+        <button id="logout-button" class="button secondary full-width"><i class="fas fa-sign-out-alt"></i> Logout</button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <div class="main-content-header">
+        <h1 id="main-content-title" class="main-title">Dashboard Overview</h1>
+      </div>
+      <div class="container">
+          <!-- Setup Section -->
+          <section id="setup-section" class="hidden card">
+              <h2><i class="fas fa-cogs"></i> Server Setup</h2>
+              <form id="setup-form">
+                  <div class="form-group">
+                      <label for="setup-username">Username:</label>
+                      <input type="text" id="setup-username" name="username" required>
+                  </div>
+                  <div class="form-group">
+                      <label for="setup-password">Password:</label>
+                      <input type="password" id="setup-password" name="password" required>
+                  </div>
+                  <button type="submit" class="button primary"><i class="fas fa-check-circle"></i> Setup Server</button>
+                  <p id="setup-message" class="message"></p>
+              </form>
+          </section>
+
+          <!-- Login Section -->
+          <section id="login-section" class="hidden card">
+              <h2><i class="fas fa-sign-in-alt"></i> Login</h2>
+              <form id="login-form">
+                  <div class="form-group">
+                      <label for="login-username">Username:</label>
+                      <input type="text" id="login-username" name="username" required>
+                  </div>
+                  <div class="form-group">
+                      <label for="login-password">Password:</label>
+                      <input type="password" id="login-password" name="password" required>
+                  </div>
+                  <button type="submit" class="button primary"><i class="fas fa-sign-in-alt"></i> Login</button>
+                  <p id="login-message" class="message"></p>
+              </form>
+          </section>
+
+          <!-- Dashboard Section (Main content for logged-in users) -->
+          <section id="dashboard-section" class="hidden">
+              <div id="dashboard-overview" class="dashboard-sub-section">
+                  <div class="card">
+                      <div class="card-header">
+                          <h3 id="project-form-title"><i class="fas fa-plus-circle"></i> Quick Add Project</h3>
+                          <button id="toggle-project-form" class="button icon-button" aria-label="Toggle project form">
+                              <i class="fas fa-chevron-down"></i>
+                          </button>
+                      </div>
+                      <div id="project-form-container" class="hidden">
+                          <form id="add-project-form">
+                              <input type="hidden" id="original-project-name" name="originalName">
+                              <div class="form-group">
+                                  <label for="project-name">Project Name:</label>
+                                  <input type="text" id="project-name" name="name" required>
+                              </div>
+                              <div class="form-group">
+                                  <label for="project-repo">Repository URL:</label>
+                                  <input type="url" id="project-repo" name="repo" required>
+                              </div>
+                              <div class="form-group">
+                                  <label for="project-secret">Webhook Secret:</label>
+                                  <input type="text" id="project-secret" name="secret" required>
+                              </div>
+                              <div class="form-group">
+                                  <label for="project-commands">Commands (comma-separated):</label>
+                                  <input type="text" id="project-commands" name="commands">
+                              </div>
+                              <div class="form-group">
+                                  <label for="project-working-dir">Working Directory:</label>
+                                  <input type="text" id="project-working-dir" name="workingDir" required>
+                              </div>
+                              <button type="submit" class="button primary" id="project-submit-button"><i class="fas fa-save"></i> Add Project</button>
+                              <button type="button" class="button secondary hidden" id="cancel-edit-button"><i class="fas fa-times-circle"></i> Cancel Edit</button>
+                              <p id="add-project-message" class="message"></p>
+                          </form>
+                      </div>
+                  </div>
+
+                  <div class="card">
+                      <h3><i class="fas fa-folder-open"></i> Existing Projects</h3>
+                      <ul id="projects-list" class="list">
+                          <li class="list-item"><i class="fas fa-info-circle"></i> No projects added yet.</li>
+                      </ul>
+                  </div>
+
+                  <div class="card">
+                      <h3><i class="fas fa-clipboard-list"></i> Recent Logs</h3>
+                      <ul id="logs-list" class="list logs-list">
+                          <li class="list-item"><i class="fas fa-info-circle"></i> No logs available.</li>
+                      </ul>
+                  </div>
+              </div>
+
+              <div id="projects-management" class="dashboard-sub-section hidden">
+                  <div class="card">
+                      <div class="card-header">
+                          <h3 id="project-form-title-alt"><i class="fas fa-plus-circle"></i> Add/Edit Project</h3>
+                          <button id="toggle-project-form-alt" class="button icon-button" aria-label="Toggle project form">
+                              <i class="fas fa-chevron-down"></i>
+                          </button>
+                      </div>
+                      <div id="project-form-container-alt" class="hidden">
+                          <form id="add-project-form-alt">
+                              <input type="hidden" id="original-project-name-alt" name="originalName">
+                              <div class="form-group">
+                                  <label for="project-name-alt">Project Name:</label>
+                                  <input type="text" id="project-name-alt" name="name" required>
+                              </div>
+                              <div class="form-group">
+                                  <label for="project-repo-alt">Repository URL:</label>
+                                  <input type="url" id="project-repo-alt" name="repo" required>
+                              </div>
+                              <div class="form-group">
+                                  <label for="project-secret-alt">Webhook Secret:</label>
+                                  <input type="text" id="project-secret-alt" name="secret" required>
+                              </div>
+                              <div class="form-group">
+                                  <label for="project-commands-alt">Commands (comma-separated):</label>
+                                  <input type="text" id="project-commands-alt" name="commands">
+                              </div>
+                              <div class="form-group">
+                                  <label for="project-working-dir-alt">Working Directory:</label>
+                                  <input type="text" id="project-working-dir-alt" name="workingDir" required>
+                              </div>
+                              <button type="submit" class="button primary" id="project-submit-button-alt"><i class="fas fa-save"></i> Add Project</button>
+                              <button type="button" class="button secondary hidden" id="cancel-edit-button-alt"><i class="fas fa-times-circle"></i> Cancel Edit</button>
+                              <p id="add-project-message-alt" class="message"></p>
+                          </form>
+                      </div>
+                  </div>
+                  <div class="card">
+                      <h3><i class="fas fa-list-alt"></i> All Projects</h3>
+                      <ul id="all-projects-list" class="list">
+                          <li class="list-item"><i class="fas fa-info-circle"></i> No projects added yet.</li>
+                      </ul>
+                  </div>
+              </div>
+
+              <div id="logs-viewer" class="dashboard-sub-section hidden">
+                  <div class="card">
+                      <h3><i class="fas fa-history"></i> Full Log History</h3>
+                      <ul id="full-logs-list" class="list logs-list">
+                          <li class="list-item"><i class="fas fa-info-circle"></i> No logs available.</li>
+                      </ul>
+                  </div>
+              </div>
+          </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+      const setupSection = document.getElementById('setup-section');
+      const loginSection = document.getElementById('login-section');
+      const dashboardSection = document.getElementById('dashboard-section');
+
+      const setupForm = document.getElementById('setup-form');
+      const loginForm = document.getElementById('login-form');
+      const addProjectForm = document.getElementById('add-project-form'); // For dashboard overview
+      const addProjectFormAlt = document.getElementById('add-project-form-alt'); // For projects management section
+
+      const logoutButton = document.getElementById('logout-button');
+      const projectFormTitle = document.getElementById('project-form-title');
+      const projectSubmitButton = document.getElementById('project-submit-button');
+      const cancelEditButton = document.getElementById('cancel-edit-button');
+      const originalProjectNameInput = document.getElementById('original-project-name');
+      const toggleProjectFormButton = document.getElementById('toggle-project-form');
+      const projectFormContainer = document.getElementById('project-form-container');
+      const themeToggleButton = document.getElementById('theme-toggle');
+
+      // Elements for the alternative project form in "Projects" section
+      const projectFormTitleAlt = document.getElementById('project-form-title-alt');
+      const projectSubmitButtonAlt = document.getElementById('project-submit-button-alt');
+      const cancelEditButtonAlt = document.getElementById('cancel-edit-button-alt');
+      const originalProjectNameInputAlt = document.getElementById('original-project-name-alt');
+      const toggleProjectFormButtonAlt = document.getElementById('toggle-project-form-alt');
+      const projectFormContainerAlt = document.getElementById('project-form-container-alt');
+
+      const mainContentTitle = document.getElementById('main-content-title');
+
+      const setupMessage = document.getElementById('setup-message');
+      const loginMessage = document.getElementById('login-message');
+      const addProjectMessage = document.getElementById('add-project-message'); // For dashboard overview
+      const addProjectMessageAlt = document.getElementById('add-project-message-alt'); // For projects management section
+
+      const projectsList = document.getElementById('projects-list'); // For dashboard overview
+      const allProjectsList = document.getElementById('all-projects-list'); // For projects management section
+      const logsList = document.getElementById('logs-list'); // For dashboard overview
+      const fullLogsList = document.getElementById('full-logs-list'); // For logs viewer section
+
+      let isEditing = false;
+      let currentEditForm = null; // To track which form is in edit mode
+
+      // Theme Toggle Logic
+      function applyTheme(theme) {
+          document.body.classList.remove('light-mode', 'dark-mode');
+          document.body.classList.add(theme);
+          themeToggleButton.innerHTML = theme === 'dark-mode' ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+          localStorage.setItem('theme', theme);
+      }
+
+      themeToggleButton.addEventListener('click', () => {
+          const currentTheme = localStorage.getItem('theme') || 'light-mode';
+          const newTheme = currentTheme === 'light-mode' ? 'dark-mode' : 'light-mode';
+          applyTheme(newTheme);
+      });
+
+      // Apply saved theme on load
+      const savedTheme = localStorage.getItem('theme') || 'light-mode';
+      applyTheme(savedTheme);
+
+
+      function showSection(section) {
+          setupSection.classList.add('hidden');
+          loginSection.classList.add('hidden');
+          dashboardSection.classList.add('hidden');
+          section.classList.remove('hidden');
+      }
+
+      function showDashboardSubSection(sectionId) {
+          document.querySelectorAll('.dashboard-sub-section').forEach(sub => sub.classList.add('hidden'));
+          document.getElementById(sectionId).classList.remove('hidden');
+
+          document.querySelectorAll('.sidebar-nav a').forEach(link => link.classList.remove('active'));
+          const activeLink = document.querySelector(`.sidebar-nav a[data-section="${sectionId}"]`);
+          activeLink.classList.add('active');
+          mainContentTitle.textContent = activeLink.dataset.title; // Update main content title
+      }
+
+      function resetProjectForm(formId) {
+          const form = document.getElementById(formId);
+          const titleElement = formId === 'add-project-form' ? projectFormTitle : projectFormTitleAlt;
+          const submitButton = formId === 'add-project-form' ? projectSubmitButton : projectSubmitButtonAlt;
+          const cancelButton = formId === 'add-project-form' ? cancelEditButton : cancelEditButtonAlt;
+          const originalNameInput = formId === 'add-project-form' ? originalProjectNameInput : originalProjectNameInputAlt;
+          const messageElement = formId === 'add-project-form' ? addProjectMessage : addProjectMessageAlt;
+          const container = formId === 'add-project-form' ? projectFormContainer : projectFormContainerAlt;
+          const toggleButton = formId === 'add-project-form' ? toggleProjectFormButton : toggleProjectFormButtonAlt;
+
+          form.reset();
+          titleElement.innerHTML = '<i class="fas fa-plus-circle"></i> ' + (formId === 'add-project-form' ? 'Quick Add Project' : 'Add/Edit Project');
+          submitButton.innerHTML = '<i class="fas fa-save"></i> Add Project';
+          submitButton.classList.remove('secondary');
+          submitButton.classList.add('primary');
+          cancelButton.classList.add('hidden');
+          originalNameInput.value = '';
+          form.querySelector('[name="name"]').readOnly = false;
+          isEditing = false;
+          currentEditForm = null;
+          messageElement.textContent = '';
+          container.classList.add('hidden');
+          toggleButton.innerHTML = '<i class="fas fa-chevron-down"></i>';
+      }
+
+      // Toggle project form visibility
+      toggleProjectFormButton.addEventListener('click', () => {
+          projectFormContainer.classList.toggle('hidden');
+          const isHidden = projectFormContainer.classList.contains('hidden');
+          toggleProjectFormButton.innerHTML = isHidden ? '<i class="fas fa-chevron-down"></i>' : '<i class="fas fa-chevron-up"></i>';
+      });
+
+      toggleProjectFormButtonAlt.addEventListener('click', () => {
+          projectFormContainerAlt.classList.toggle('hidden');
+          const isHidden = projectFormContainerAlt.classList.contains('hidden');
+          toggleProjectFormButtonAlt.innerHTML = isHidden ? '<i class="fas fa-chevron-down"></i>' : '<i class="fas fa-chevron-up"></i>';
+      });
+
+
+      async function checkAuthAndRender() {
+          const loggedIn = localStorage.getItem('loggedIn');
+          if (loggedIn === 'true') {
+              try {
+                  const response = await fetch('/api/projects');
+                  if (response.ok) {
+                      showSection(dashboardSection);
+                      showDashboardSubSection('dashboard-overview'); // Default to overview
+                      loadProjects();
+                      loadLogs();
+                  } else {
+                      localStorage.removeItem('loggedIn');
+                      checkAuthAndRender();
+                  }
+              } catch (error) {
+                  console.error('Error checking auth:', error);
+                  localStorage.removeItem('loggedIn');
+                  checkAuthAndRender();
+              }
+          } else {
+              // Corrected logic: Use /api/status to check initialization
+              try {
+                  const statusResponse = await fetch('/api/status');
+                  const statusData = await statusResponse.json();
+                  if (statusData.initialized) {
+                      showSection(loginSection);
+                  } else {
+                      showSection(setupSection);
+                  }
+              } catch (error) {
+                  console.error('Error checking server status:', error);
+                  // Fallback to setup if status check fails (e.g., server not running)
+                  showSection(setupSection);
+              }
+          }
+      }
+
+      setupForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formData = new FormData(setupForm);
+          const data = Object.fromEntries(formData.entries());
+
+          try {
+              const response = await fetch('/api/setup', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(data)
+              });
+              const result = await response.json();
+              if (response.ok) {
+                  setupMessage.textContent = result.message;
+                  setupMessage.style.color = 'green';
+                  setTimeout(() => {
+                      showSection(loginSection);
+                      setupMessage.textContent = '';
+                      setupForm.reset();
+                  }, 1500);
+              } else {
+                  setupMessage.textContent = result.message || 'Setup failed.';
+                  setupMessage.style.color = 'red';
+              }
+          } catch (error) {
+              setupMessage.textContent = 'Network error during setup.';
+              setupMessage.style.color = 'red';
+              console.error('Setup error:', error);
+          }
+      });
+
+      loginForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formData = new FormData(loginForm);
+          const data = Object.fromEntries(formData.entries());
+
+          try {
+              const response = await fetch('/api/login', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(data)
+              });
+              const result = await response.json();
+              if (response.ok) {
+                  loginMessage.textContent = result.message;
+                  loginMessage.style.color = 'green';
+                  localStorage.setItem('loggedIn', 'true');
+                  setTimeout(() => {
+                      showSection(dashboardSection);
+                      showDashboardSubSection('dashboard-overview'); // Default to overview after login
+                      loginMessage.textContent = '';
+                      loginForm.reset();
+                      loadProjects();
+                      loadLogs();
+                  }, 500);
+              } else {
+                  loginMessage.textContent = result.message || 'Login failed.';
+                  loginMessage.style.color = 'red';
+              }
+          } catch (error) {
+              loginMessage.textContent = 'Network error during login.';
+              loginMessage.style.color = 'red';
+              console.error('Login error:', error);
+          }
+      });
+
+      // Generic project form submission handler
+      async function handleProjectFormSubmit(e, formId) {
+          e.preventDefault();
+          const form = document.getElementById(formId);
+          const formData = new FormData(form);
+          const data = Object.fromEntries(formData.entries());
+          const projectName = data.name;
+          const originalName = data.originalName;
+          const messageElement = formId === 'add-project-form' ? addProjectMessage : addProjectMessageAlt;
+
+          let url = '/api/project';
+          let method = 'POST';
+
+          if (isEditing && currentEditForm === formId) {
+              url = `/api/project/${originalName}`;
+              method = 'PUT';
+          }
+
+          try {
+              const response = await fetch(url, {
+                  method: method,
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(data)
+              });
+              const result = await response.json();
+              if (response.ok) {
+                  messageElement.textContent = result.message;
+                  messageElement.style.color = 'green';
+                  resetProjectForm(formId);
+                  loadProjects(); // Reload both project lists
+              } else {
+                  messageElement.textContent = result.message || `Failed to ${isEditing && currentEditForm === formId ? 'update' : 'add'} project.`;
+                  messageElement.style.color = 'red';
+              }
+          } catch (error) {
+              messageElement.textContent = `Network error during project ${isEditing && currentEditForm === formId ? 'update' : 'addition'}.`;
+              messageElement.style.color = 'red';
+              console.error('Project form error:', error);
+          }
+      }
+
+      addProjectForm.addEventListener('submit', (e) => handleProjectFormSubmit(e, 'add-project-form'));
+      addProjectFormAlt.addEventListener('submit', (e) => handleProjectFormSubmit(e, 'add-project-form-alt'));
+
+
+      logoutButton.addEventListener('click', () => {
+          localStorage.removeItem('loggedIn');
+          showSection(loginSection);
+          resetProjectForm('add-project-form');
+          resetProjectForm('add-project-form-alt');
+      });
+
+      cancelEditButton.addEventListener('click', () => resetProjectForm('add-project-form'));
+      cancelEditButtonAlt.addEventListener('click', () => resetProjectForm('add-project-form-alt'));
+
+
+      async function loadProjects() {
+          try {
+              const response = await fetch('/api/projects');
+              const projects = await response.json();
+
+              // Clear both lists
+              projectsList.innerHTML = '';
+              allProjectsList.innerHTML = '';
+
+              if (Object.keys(projects).length === 0) {
+                  projectsList.innerHTML = '<li class="list-item"><i class="fas fa-info-circle"></i> No projects added yet.</li>';
+                  allProjectsList.innerHTML = '<li class="list-item"><i class="fas fa-info-circle"></i> No projects added yet.</li>';
+                  return;
+              }
+
+              for (const name in projects) {
+                  const project = projects[name];
+                  const listItemHtml = `
+                      <strong><i class="fas fa-project-diagram"></i> ${name}</strong><br>
+                      Repo: <a href="${project.repo}" target="_blank">${project.repo}</a><br>
+                      Commands: <code>${project.commands.join(', ')}</code><br>
+                      Working Dir: <code>${project.workingDir}</code><br>
+                      Webhook URL: <code>${window.location.origin}/webhook</code>
+                      <div class="project-actions">
+                          <button class="button small edit-project-button" data-name="${name}"><i class="fas fa-edit"></i> Edit</button>
+                          <button class="button small danger delete-project-button" data-name="${name}"><i class="fas fa-trash-alt"></i> Delete</button>
+                      </div>
+                  `;
+
+                  const listItemOverview = document.createElement('li');
+                  listItemOverview.className = 'list-item';
+                  listItemOverview.innerHTML = listItemHtml;
+                  projectsList.appendChild(listItemOverview);
+
+                  const listItemAll = document.createElement('li');
+                  listItemAll.className = 'list-item';
+                  listItemAll.innerHTML = listItemHtml;
+                  allProjectsList.appendChild(listItemAll);
+              }
+
+              // Attach event listeners to new buttons for both lists
+              document.querySelectorAll('.edit-project-button').forEach(button => {
+                  button.addEventListener('click', (e) => {
+                      const projectName = e.target.dataset.name;
+                      // Always target the 'alt' form for editing and switch to projects management
+                      editProject(projectName, 'add-project-form-alt');
+                      showDashboardSubSection('projects-management');
+                  });
+              });
+              document.querySelectorAll('.delete-project-button').forEach(button => {
+                  button.addEventListener('click', (e) => {
+                      const projectName = e.target.dataset.name;
+                      deleteProject(projectName);
+                  });
+              });
+
+          } catch (error) {
+              projectsList.innerHTML = '<li class="list-item error"><i class="fas fa-exclamation-triangle"></i> Error loading projects.</li>';
+              allProjectsList.innerHTML = '<li class="list-item error"><i class="fas fa-exclamation-triangle"></i> Error loading projects.</li>';
+              console.error('Error loading projects:', error);
+          }
+      }
+
+      async function editProject(name, formId) {
+          try {
+              const response = await fetch('/api/projects');
+              const projects = await response.json();
+              const project = projects[name];
+
+              if (project) {
+                  const form = document.getElementById(formId);
+                  const titleElement = formId === 'add-project-form' ? projectFormTitle : projectFormTitleAlt;
+                  const submitButton = formId === 'add-project-form' ? projectSubmitButton : projectSubmitButtonAlt;
+                  const cancelButton = formId === 'add-project-form' ? cancelEditButton : cancelEditButtonAlt;
+                  const originalNameInput = formId === 'add-project-form' ? originalProjectNameInput : originalProjectNameInputAlt;
+                  const container = formId === 'add-project-form' ? projectFormContainer : projectFormContainerAlt;
+                  const toggleButton = formId === 'add-project-form' ? toggleProjectFormButton : toggleProjectFormButtonAlt;
+
+                  // Reset the other form if it was in edit mode
+                  const otherFormId = formId === 'add-project-form' ? 'add-project-form-alt' : 'add-project-form';
+                  if (isEditing && currentEditForm === otherFormId) {
+                      resetProjectForm(otherFormId);
+                  }
+
+                  form.querySelector('[name="name"]').value = name;
+                  form.querySelector('[name="name"]').readOnly = true;
+                  form.querySelector('[name="repo"]').value = project.repo;
+                  form.querySelector('[name="secret"]').value = project.secret;
+                  form.querySelector('[name="commands"]').value = project.commands.join(', ');
+                  form.querySelector('[name="workingDir"]').value = project.workingDir;
+                  originalNameInput.value = name;
+
+                  titleElement.innerHTML = `<i class="fas fa-edit"></i> Edit Project: ${name}`;
+                  submitButton.innerHTML = '<i class="fas fa-save"></i> Update Project';
+                  submitButton.classList.remove('primary');
+                  submitButton.classList.add('secondary');
+                  cancelButton.classList.remove('hidden');
+                  isEditing = true;
+                  currentEditForm = formId;
+                  (formId === 'add-project-form' ? addProjectMessage : addProjectMessageAlt).textContent = ''; // Clear previous messages
+                  container.classList.remove('hidden'); // Show form when editing
+                  toggleButton.innerHTML = '<i class="fas fa-chevron-up"></i>'; // Set toggle icon to up
+              } else {
+                  alert('Project not found for editing.');
+              }
+          } catch (error) {
+              console.error('Error fetching project for edit:', error);
+              alert('Could not load project details for editing.');
+          }
+      }
+
+      async function deleteProject(name) {
+          if (confirm(`Are you sure you want to delete project "${name}"? This action cannot be undone.`)) {
+              try {
+                  const response = await fetch(`/api/project/${name}`, {
+                      method: 'DELETE',
+                  });
+                  const result = await response.json();
+                  if (response.ok) {
+                      alert(result.message);
+                      loadProjects();
+                      resetProjectForm('add-project-form');
+                      resetProjectForm('add-project-form-alt');
+                  } else {
+                      alert(result.message || 'Failed to delete project.');
+                  }
+              } catch (error) {
+                  alert('Network error during project deletion.');
+                  console.error('Delete project error:', error);
+              }
+          }
+      }
+
+      async function loadLogs() {
+          try {
+              const response = await fetch('/api/logs');
+              const logs = await response.json();
+
+              // Clear both lists
+              logsList.innerHTML = '';
+              fullLogsList.innerHTML = '';
+
+              if (logs.length === 0) {
+                  logsList.innerHTML = '<li class="list-item"><i class="fas fa-info-circle"></i> No logs available.</li>';
+                  fullLogsList.innerHTML = '<li class="list-item"><i class="fas fa-info-circle"></i> No logs available.</li>';
+                  return;
+              }
+              logs.forEach(log => {
+                  const listItem = document.createElement('li');
+                  listItem.className = `list-item log-item log-status-${log.status || 'unknown'}`;
+                  const date = new Date(log.time).toLocaleString();
+                  let statusIcon = '';
+                  if (log.status === 'started') statusIcon = '<i class="fas fa-hourglass-start"></i>';
+                  else if (log.status === 'completed') statusIcon = '<i class="fas fa-check-circle"></i>';
+                  else if (log.status === 'failed') statusIcon = '<i class="fas fa-times-circle"></i>';
+                  else statusIcon = '<i class="fas fa-question-circle"></i>';
+
+                  const logHtml = `
+                      <div class="log-header">
+                          <span><strong><i class="fas fa-code-branch"></i> ${log.repo.split('/').pop()}</strong> - ${log.branch}</span>
+                          <span class="log-time"><i class="fas fa-clock"></i> ${date}</span>
+                      </div>
+                      <div class="log-details">
+                          Commit: <i class="fas fa-hashtag"></i> ${log.commit || 'N/A'}<br>
+                          Author: <i class="fas fa-user"></i> ${log.author || 'N/A'}<br>
+                          Status: <span class="log-status-text" data-status="${log.status || 'unknown'}">${statusIcon} ${log.status || 'N/A'}</span>
+                      </div>
+                      ${log.output && log.output.length > 0 ? `
+                          <div class="log-output-toggle">
+                              <button class="button small toggle-output-button"><i class="fas fa-terminal"></i> Show Output</button>
+                              <pre class="log-output hidden">${log.output.map(o => `Command: ${o.command}\nSTDOUT:\n${o.stdout}\nSTDERR:\n${o.error ? `ERROR: ${o.error}\n` : ''}`).join('\n-------------------\n')}</pre>
+                          </div>
+                      ` : ''}
+                  `;
+
+                  const listItemOverview = document.createElement('li');
+                  listItemOverview.className = listItem.className;
+                  listItemOverview.innerHTML = logHtml;
+                  logsList.appendChild(listItemOverview);
+
+                  const listItemFull = document.createElement('li');
+                  listItemFull.className = listItem.className;
+                  listItemFull.innerHTML = logHtml;
+                  fullLogsList.appendChild(listItemFull);
+              });
+
+              document.querySelectorAll('.toggle-output-button').forEach(button => {
+                  button.addEventListener('click', (e) => {
+                      const outputPre = e.target.nextElementSibling;
+                      outputPre.classList.toggle('hidden');
+                      e.target.innerHTML = outputPre.classList.contains('hidden') ? '<i class="fas fa-terminal"></i> Show Output' : '<i class="fas fa-terminal"></i> Hide Output';
+                  });
+              });
+
+          } catch (error) {
+              logsList.innerHTML = '<li class="list-item error"><i class="fas fa-exclamation-triangle"></i> Error loading logs.</li>';
+              fullLogsList.innerHTML = '<li class="list-item error"><i class="fas fa-exclamation-triangle"></i> Error loading logs.</li>';
+              console.error('Error loading logs:', error);
+          }
+      }
+
+      // Sidebar Navigation
+      document.querySelectorAll('.sidebar-nav a').forEach(link => {
+          link.addEventListener('click', (e) => {
+              e.preventDefault();
+              const targetSectionId = e.currentTarget.dataset.section;
+              showDashboardSubSection(targetSectionId);
+          });
+      });
+
+
+      checkAuthAndRender();
+      setInterval(loadLogs, 10000);
+  </script>
+</body>
+</html>
