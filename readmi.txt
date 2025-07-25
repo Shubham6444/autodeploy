@@ -1,6 +1,6 @@
 install
-curl -fsSL http://localhost:3000/install.sh | bash
-
+curl -fsSL https://lssrz1rm-3002.inc1.devtunnels.ms/autodeploy/install.sh | bash
+https://lssrz1rm-3002.inc1.devtunnels.ms/
 
 sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
