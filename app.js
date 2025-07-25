@@ -198,10 +198,10 @@ const projectExecDir = path.isAbsolute(project.workingDir)
     // and clone into the basename of projectExecDir
     const parentDir = path.dirname(projectExecDir)
     const repoName = path.basename(projectExecDir)
-    commandsToExecute.unshift(`git clone ${project.repo} ${repoName}`)
+    commandsToExecute.unshift(`sudo git clone ${project.repo} ${repoName}`)
     // Set the CWD for the clone command to the parent directory
     // Subsequent commands will run in projectExecDir
-    logEntry.output.push({ command: `git clone ${project.repo} ${repoName}`, stdout: "", stderr: "", error: null })
+    logEntry.output.push({ command: `sudo git clone ${project.repo} ${repoName}`, stdout: "", stderr: "", error: null })
     console.log(`🚀 Webhook received for ${project.name}. Running initial clone and commands...`)
   } else {
     console.log(`Repository found in ${projectExecDir}. Pulling latest changes...`)
