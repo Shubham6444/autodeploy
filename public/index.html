@@ -932,11 +932,11 @@ section h2 i {
           const originalName = data.originalName;
           const messageElement = formId === 'add-project-form' ? addProjectMessage : addProjectMessageAlt;
 
-          let url = '/api/project';
+          let url = '/autodeploy/api/project';
           let method = 'POST';
 
           if (isEditing && currentEditForm === formId) {
-              url = `/api/project/${originalName}`;
+              url = `/autodeploy/api/project/${originalName}`;
               method = 'PUT';
           }
 
