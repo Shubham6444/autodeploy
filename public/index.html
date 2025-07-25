@@ -823,7 +823,7 @@ section h2 i {
           const loggedIn = localStorage.getItem('loggedIn');
           if (loggedIn === 'true') {
               try {
-                  const response = await fetch('http://localhost:8001/autodeploy/api/projects');
+                  const response = await fetch('/autodeploy/api/projects');
                   if (response.ok) {
                       showSection(dashboardSection);
                       showDashboardSubSection('dashboard-overview'); // Default to overview
@@ -841,7 +841,7 @@ section h2 i {
           } else {
               // Corrected logic: Use /api/status to check initialization
               try {
-                  const statusResponse = await fetch('http://localhost:8001/autodeploy/api/status');
+                  const statusResponse = await fetch('/autodeploy/api/status');
                   const statusData = await statusResponse.json();
                   if (statusData.initialized) {
                       showSection(loginSection);
@@ -862,7 +862,7 @@ section h2 i {
           const data = Object.fromEntries(formData.entries());
 
           try {
-              const response = await fetch('http://localhost:8001/autodeploy/api/setup', {
+              const response = await fetch('/autodeploy/api/setup', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(data)
@@ -893,7 +893,7 @@ section h2 i {
           const data = Object.fromEntries(formData.entries());
 
           try {
-              const response = await fetch('http://localhost:8001/autodeploy/api/login', {
+              const response = await fetch('/autodeploy/api/login', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(data)
@@ -980,7 +980,7 @@ section h2 i {
 
       async function loadProjects() {
           try {
-              const response = await fetch('http://localhost:8001/autodeploy/api/projects');
+              const response = await fetch('/autodeploy/api/projects');
               const projects = await response.json();
 
               // Clear both lists
@@ -1043,7 +1043,7 @@ section h2 i {
 
       async function editProject(name, formId) {
           try {
-              const response = await fetch('http://localhost:8001/autodeploy/api/projects');
+              const response = await fetch('/autodeploy/api/projects');
               const projects = await response.json();
               const project = projects[name];
 
@@ -1092,7 +1092,7 @@ section h2 i {
       async function deleteProject(name) {
           if (confirm(`Are you sure you want to delete project "${name}"? This action cannot be undone.`)) {
               try {
-                  const response = await fetch(`http://localhost:8001/autodeploy/api/project/${name}`, {
+                  const response = await fetch(`/autodeploy/api/project/${name}`, {
                       method: 'DELETE',
                   });
                   const result = await response.json();
@@ -1113,7 +1113,7 @@ section h2 i {
 
       async function loadLogs() {
           try {
-              const response = await fetch('http://localhost:8001/autodeploy/api/logs');
+              const response = await fetch('/autodeploy/api/logs');
               const logs = await response.json();
 
               // Clear both lists
