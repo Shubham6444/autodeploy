@@ -1,43 +1,43 @@
-const express = require("express")
-const fs = require("fs")
-const crypto = require("crypto")
-const path = require("path")
-const { exec } = require("child_process")
+const express = require("express");
+const fs = require("fs");
+const crypto = require("crypto");
+const path = require("path");
+const { exec } = require("child_process");
 
-const app = express()
-const PORT = 1000
+const app = express();
+const PORT = 1000;
 
 // Middleware to parse JSON and raw body for webhook signature verification
 app.use(
   express.json({
     verify: (req, res, buf) => {
-      req.rawBody = buf
+      req.rawBody = buf;
     },
-  }),
-)
-app.use(express.urlencoded({ extended: true }))
+  })
+);
+app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from the 'public' directory
-app.use(express.static(path.join(__dirname, "public")))
+// Serve static files
+app.use(express.static(path.join(__dirname, "public")));
 
-const USERS_FILE = path.join(__dirname, "users.json")
-const PROJECTS_FILE = path.join(__dirname, "projects.json")
-const LOGS_FILE = path.join(__dirname, "logs.json")
+const USERS_FILE = path.join(__dirname, "users.json");
+const PROJECTS_FILE = path.join(__dirname, "projects.json");
+const LOGS_FILE = path.join(__dirname, "logs.json");
 
 function load(file, fallback = {}) {
   try {
-    return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : fallback
-  } catch (error) {
-    console.error(`Error loading ${file}:`, error.message)
-    return fallback
+    return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : fallback;
+  } catch (err) {
+    console.error(`Error loading ${file}:`, err.message);
+    return fallback;
   }
 }
 
 function save(file, data) {
   try {
-    fs.writeFileSync(file, JSON.stringify(data, null, 2), "utf8")
-  } catch (error) {
-    console.error(`Error saving ${file}:`, error.message)
+    fs.writeFileSync(file, JSON.stringify(data, null, 2), "utf8");
+  } catch (err) {
+    console.error(`Error saving ${file}:`, err.message);
   }
 }
 
@@ -45,124 +45,108 @@ function sanitizeCommands(str) {
   return str
     .split(",")
     .map((cmd) => cmd.trim().replace(/\s+/g, " "))
-    .filter(Boolean)
+    .filter(Boolean);
 }
 
-// Root route to serve the HTML UI
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"))
-})
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
 
-// NEW: Endpoint to check server initialization status
 app.get("/api/status", (req, res) => {
-  if (fs.existsSync(USERS_FILE)) {
-    res.json({ initialized: true })
-  } else {
-    res.json({ initialized: false })
-  }
-})
+  res.json({ initialized: fs.existsSync(USERS_FILE) });
+});
 
-// API Endpoints
 app.post("/api/setup", (req, res) => {
-  const { username, password } = req.body
+  const { username, password } = req.body;
   if (fs.existsSync(USERS_FILE)) {
-    return res.status(400).json({ message: "Server already initialized." })
+    return res.status(400).json({ message: "Server already initialized." });
   }
   if (!username || !password) {
-    return res.status(400).json({ message: "Username and password are required." })
+    return res.status(400).json({ message: "Username and password are required." });
   }
-  save(USERS_FILE, { username, password })
-  res.json({ message: "Setup complete." })
-})
+  save(USERS_FILE, { username, password });
+  res.json({ message: "Setup complete." });
+});
 
 app.post("/api/login", (req, res) => {
-  const { username, password } = req.body
-  const users = load(USERS_FILE)
+  const { username, password } = req.body;
+  const users = load(USERS_FILE);
   if (!users.username || !users.password) {
-    return res.status(400).json({ message: "Server not set up. Please run setup first." })
+    return res.status(400).json({ message: "Server not set up." });
   }
   if (users.username === username && users.password === password) {
-    return res.json({ message: "Login successful." })
+    return res.json({ message: "Login successful." });
   }
-  res.status(401).json({ message: "Invalid username or password." })
-})
+  res.status(401).json({ message: "Invalid credentials." });
+});
 
-// Add new project
 app.post("/api/project", (req, res) => {
-  const { name, repo, secret, commands, workingDir } = req.body
+  const { name, repo, secret, commands, workingDir } = req.body;
   if (!name || !repo || !secret || !workingDir) {
-    return res.status(400).json({ message: "Project name, repository, secret, and working directory are required." })
+    return res.status(400).json({ message: "All fields are required." });
   }
-  const projects = load(PROJECTS_FILE)
+  const projects = load(PROJECTS_FILE);
   if (projects[name]) {
-    return res.status(409).json({ message: `Project with name '${name}' already exists.` })
+    return res.status(409).json({ message: `Project '${name}' already exists.` });
   }
-  projects[name] = { repo, secret, commands: sanitizeCommands(commands), workingDir }
-  save(PROJECTS_FILE, projects)
-  res.json({ message: "Project saved successfully." })
-})
+  projects[name] = { repo, secret, commands: sanitizeCommands(commands), workingDir };
+  save(PROJECTS_FILE, projects);
+  res.json({ message: "Project saved." });
+});
 
-// Update existing project
 app.put("/api/project/:name", (req, res) => {
-  const projectName = req.params.name
-  const { repo, secret, commands, workingDir } = req.body
-  if (!repo || !secret || !commands || !workingDir) {
-    return res.status(400).json({ message: "Repository, secret, commands, and working directory are required." })
+  const name = req.params.name;
+  const { repo, secret, commands, workingDir } = req.body;
+  const projects = load(PROJECTS_FILE);
+  if (!projects[name]) {
+    return res.status(404).json({ message: "Project not found." });
   }
-  const projects = load(PROJECTS_FILE)
-  if (!projects[projectName]) {
-    return res.status(404).json({ message: `Project '${projectName}' not found.` })
-  }
-  projects[projectName] = { repo, secret, commands: sanitizeCommands(commands), workingDir }
-  save(PROJECTS_FILE, projects)
-  res.json({ message: `Project '${projectName}' updated successfully.` })
-})
+  projects[name] = { repo, secret, commands: sanitizeCommands(commands), workingDir };
+  save(PROJECTS_FILE, projects);
+  res.json({ message: "Project updated." });
+});
 
-// Delete project
 app.delete("/api/project/:name", (req, res) => {
-  const projectName = req.params.name
-  const projects = load(PROJECTS_FILE)
-  if (!projects[projectName]) {
-    return res.status(404).json({ message: `Project '${projectName}' not found.` })
+  const name = req.params.name;
+  const projects = load(PROJECTS_FILE);
+  if (!projects[name]) {
+    return res.status(404).json({ message: "Project not found." });
   }
-  delete projects[projectName]
-  save(PROJECTS_FILE, projects)
-  res.json({ message: `Project '${projectName}' deleted successfully.` })
-})
+  delete projects[name];
+  save(PROJECTS_FILE, projects);
+  res.json({ message: "Project deleted." });
+});
 
 app.get("/api/projects", (req, res) => {
-  res.json(load(PROJECTS_FILE))
-})
+  res.json(load(PROJECTS_FILE));
+});
 
 app.get("/api/logs", (req, res) => {
-  res.json(load(LOGS_FILE, []))
-})
+  res.json(load(LOGS_FILE, []));
+});
 
-// Webhook endpoint
 app.post("/webhook", (req, res) => {
-  const event = req.headers["x-github-event"]
-  console.log(event)
-  const signature = req.headers["x-hub-signature-256"]
-  const payload = req.body
+  const event = req.headers["x-github-event"];
+  const signature = req.headers["x-hub-signature-256"];
+  const payload = req.body;
 
-const repoUrl =
-  payload && payload.repository && payload.repository.html_url
-    ? payload.repository.html_url.replace(/\.git$/, "")
-    : null
-  const projects = load(PROJECTS_FILE)
+  const repoUrl =
+    payload?.repository?.html_url?.replace(/\.git$/, "") || null;
 
-  const project = Object.values(projects).find((p) => p.repo.replace(/\.git$/, "") === repoUrl)
+  const projects = load(PROJECTS_FILE);
+  const project = Object.values(projects).find((p) => p.repo.replace(/\.git$/, "") === repoUrl);
 
   if (!project) {
-    console.warn(`Webhook received for unknown repository: ${repoUrl}`)
-    return res.status(400).send("Project not found")
+    console.warn(`Webhook received for unknown repository: ${repoUrl}`);
+    return res.status(400).send("Project not found.");
   }
 
-  // Verify webhook signature
-  const expectedSig = "sha256=" + crypto.createHmac("sha256", project.secret).update(req.rawBody).digest("hex")
-  if (expectedSig !== signature) {
-    console.error(`Invalid signature for project ${project.name}. Expected: ${expectedSig}, Received: ${signature}`)
-    return res.status(403).send("Invalid signature")
+  const expectedSig =
+    "sha256=" + crypto.createHmac("sha256", project.secret).update(req.rawBody).digest("hex");
+
+  if (signature !== expectedSig) {
+    console.error("Invalid signature.");
+    return res.status(403).send("Invalid signature.");
   }
 
   const logEntry = {
@@ -173,88 +157,110 @@ const repoUrl =
     author: payload.pusher?.name,
     status: "started",
     output: [],
-  }
+  };
 
-  const logs = load(LOGS_FILE, [])
-  logs.unshift(logEntry) // Add to the beginning
-  save(LOGS_FILE, logs.slice(0, 100)) // Keep only the latest 100 logs
+  const logs = load(LOGS_FILE, []);
+  logs.unshift(logEntry);
+  save(LOGS_FILE, logs.slice(0, 100));
 
-const projectExecDir = path.isAbsolute(project.workingDir)
-  ? project.workingDir
-  : path.join(__dirname, project.workingDir)
-  const commandsToExecute = Array.isArray(project.commands) ? [...project.commands] : [] // Clone array
+  const projectExecDir = path.isAbsolute(project.workingDir)
+    ? project.workingDir
+    : path.join(__dirname, project.workingDir);
 
-  // Ensure the working directory exists
+  const commandsToExecute = Array.isArray(project.commands) ? [...project.commands] : [];
+
   if (!fs.existsSync(projectExecDir)) {
-    console.log(`Creating working directory: ${projectExecDir}`)
-    fs.mkdirSync(projectExecDir, { recursive: true })
+    console.log(`Creating working directory: ${projectExecDir}`);
+    fs.mkdirSync(projectExecDir, { recursive: true });
   }
 
-  // Determine if git clone or git pull is needed
-  const gitRepoPath = path.join(projectExecDir, ".git")
+  const gitRepoPath = path.join(projectExecDir, ".git");
+  let workingDirectory;
+
   if (!fs.existsSync(gitRepoPath)) {
-    console.log(`Repository not found in ${projectExecDir}. Cloning...`)
-    // For cloning, we need to execute in the parent directory of projectExecDir
-    // and clone into the basename of projectExecDir
-    const parentDir = path.dirname(projectExecDir)
-    const repoName = path.basename(projectExecDir)
-    commandsToExecute.unshift(`sudo git clone ${project.repo} ${repoName}`)
-    // Set the CWD for the clone command to the parent directory
-    // Subsequent commands will run in projectExecDir
-    logEntry.output.push({ command: `sudo git clone ${project.repo} ${repoName}`, stdout: "", stderr: "", error: null })
-    console.log(`🚀 Webhook received for ${project.name}. Running initial clone and commands...`)
+    const parentDir = path.dirname(projectExecDir);
+    const repoName = path.basename(projectExecDir);
+    const cloneCmd = `sudo git clone ${project.repo} ${repoName}`;
+    commandsToExecute.unshift(cloneCmd);
+    workingDirectory = parentDir;
+
+    logEntry.output.push({
+      command: cloneCmd,
+      stdout: "",
+      stderr: "",
+      error: null,
+    });
+
+    console.log(`🚀 Cloning ${project.repo} into ${projectExecDir}`);
   } else {
-    console.log(`Repository found in ${projectExecDir}. Pulling latest changes...`)
-    commandsToExecute.unshift("git pull")
-    logEntry.output.push({ command: `git pull`, stdout: "", stderr: "", error: null })
-    console.log(`🚀 Webhook received for ${project.name}. Running pull and commands...`)
+    const pullCmd = "git pull";
+    commandsToExecute.unshift(pullCmd);
+    workingDirectory = projectExecDir;
+
+    logEntry.output.push({
+      command: pullCmd,
+      stdout: "",
+      stderr: "",
+      error: null,
+    });
+
+    console.log(`🚀 Pulling latest changes in ${projectExecDir}`);
   }
 
-  let commandIndex = 0
+  let commandIndex = 0;
+
   const executeNextCommand = () => {
-    if (commandIndex < commandsToExecute.length) {
-      const cmd = commandsToExecute[commandIndex]
-      // For the initial git clone, the cwd needs to be the parent directory
-      // For all other commands (including git pull), the cwd is projectExecDir
-      const currentCwd =
-        commandIndex === 0 && cmd.startsWith("git clone") ? path.dirname(projectExecDir) : projectExecDir
-
-      console.log(`⚙️ Running: ${cmd} in ${currentCwd}`)
-      const child = exec(cmd, { cwd: currentCwd }, (err, stdout, stderr) => {
-        const currentLogIndex = logs.findIndex((log) => log.time === logEntry.time)
-        if (currentLogIndex !== -1) {
-          logs[currentLogIndex].output.push({ command: cmd, stdout, stderr, error: err ? err.message : null })
-          if (err) {
-            console.error(`❌ ${cmd}:`, stderr)
-            logs[currentLogIndex].status = "failed"
-          } else {
-            console.log(`✅ ${cmd}:`, stdout)
-          }
-          save(LOGS_FILE, logs)
-        }
-        commandIndex++
-        executeNextCommand() // Execute next command
-      })
-
-      child.stdout.on("data", (data) => {
-        console.log(`[${cmd} stdout]: ${data.toString()}`)
-      })
-      child.stderr.on("data", (data) => {
-        console.error(`[${cmd} stderr]: ${data.toString()}`)
-      })
-    } else {
-      const currentLogIndex = logs.findIndex((log) => log.time === logEntry.time)
-      if (currentLogIndex !== -1 && logs[currentLogIndex].status !== "failed") {
-        logs[currentLogIndex].status = "completed"
-        save(LOGS_FILE, logs)
+    if (commandIndex >= commandsToExecute.length) {
+      const logIdx = logs.findIndex((l) => l.time === logEntry.time);
+      if (logIdx !== -1 && logs[logIdx].status !== "failed") {
+        logs[logIdx].status = "completed";
+        save(LOGS_FILE, logs);
       }
-      console.log(`🎉 All commands for ${project.name} executed.`)
+      console.log(`🎉 All commands for ${project.repo} finished.`);
+      return;
     }
-  }
 
-  executeNextCommand() // Start executing commands
+    const cmd = commandsToExecute[commandIndex];
+    const currentCwd =
+      commandIndex === 0 && cmd.startsWith("sudo git clone")
+        ? path.dirname(projectExecDir)
+        : projectExecDir;
 
-  res.send("OK")
-})
+    console.log(`⚙️ Running: ${cmd} in ${currentCwd}`);
+    const child = exec(cmd, { cwd: currentCwd }, (err, stdout, stderr) => {
+      const logIdx = logs.findIndex((l) => l.time === logEntry.time);
+      if (logIdx !== -1) {
+        logs[logIdx].output.push({
+          command: cmd,
+          stdout,
+          stderr,
+          error: err ? err.message : null,
+        });
+        if (err) {
+          logs[logIdx].status = "failed";
+          console.error(`❌ ${cmd}:`, err.message);
+        } else {
+          console.log(`✅ ${cmd}: Success`);
+        }
+        save(LOGS_FILE, logs);
+      }
 
-app.listen(PORT, () => console.log(`✅ CI/CD Server running at http://localhost:${PORT}`))
+      commandIndex++;
+      executeNextCommand();
+    });
+
+    child.stdout.on("data", (data) => {
+      console.log(`[stdout] ${cmd}: ${data}`);
+    });
+    child.stderr.on("data", (data) => {
+      console.error(`[stderr] ${cmd}: ${data}`);
+    });
+  };
+
+  executeNextCommand();
+  res.send("OK");
+});
+
+app.listen(PORT, () =>
+  console.log(`✅ CI/CD Server running at http://localhost:${PORT}`)
+);
