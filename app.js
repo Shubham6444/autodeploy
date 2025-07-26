@@ -7,7 +7,7 @@ const { exec } = require("child_process");
 const app = express();
 const PORT = 1000;
 
-// Middleware to parse JSON and raw body for webhook signature verification
+// Middleware to parse JSON and capture raw body for signature verification
 app.use(
   express.json({
     verify: (req, res, buf) => {
@@ -16,8 +16,6 @@ app.use(
   })
 );
 app.use(express.urlencoded({ extended: true }));
-
-// Serve static files
 app.use(express.static(path.join(__dirname, "public")));
 
 const USERS_FILE = path.join(__dirname, "users.json");
@@ -71,9 +69,6 @@ app.post("/api/setup", (req, res) => {
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
   const users = load(USERS_FILE);
-  if (!users.username || !users.password) {
-    return res.status(400).json({ message: "Server not set up." });
-  }
   if (users.username === username && users.password === password) {
     return res.json({ message: "Login successful." });
   }
@@ -130,22 +125,17 @@ app.post("/webhook", (req, res) => {
   const signature = req.headers["x-hub-signature-256"];
   const payload = req.body;
 
-  const repoUrl =
-    payload?.repository?.html_url?.replace(/\.git$/, "") || null;
-
+  const repoUrl = payload?.repository?.html_url?.replace(/\.git$/, "") || null;
   const projects = load(PROJECTS_FILE);
   const project = Object.values(projects).find((p) => p.repo.replace(/\.git$/, "") === repoUrl);
 
   if (!project) {
-    console.warn(`Webhook received for unknown repository: ${repoUrl}`);
     return res.status(400).send("Project not found.");
   }
 
   const expectedSig =
     "sha256=" + crypto.createHmac("sha256", project.secret).update(req.rawBody).digest("hex");
-
   if (signature !== expectedSig) {
-    console.error("Invalid signature.");
     return res.status(403).send("Invalid signature.");
   }
 
@@ -170,14 +160,15 @@ app.post("/webhook", (req, res) => {
   const commandsToExecute = Array.isArray(project.commands) ? [...project.commands] : [];
 
   if (!fs.existsSync(projectExecDir)) {
-    console.log(`Creating working directory: ${projectExecDir}`);
     fs.mkdirSync(projectExecDir, { recursive: true });
   }
 
   const gitRepoPath = path.join(projectExecDir, ".git");
+  const folderExists = fs.existsSync(projectExecDir);
+  const isGitRepo = fs.existsSync(gitRepoPath);
   let workingDirectory;
 
-  if (!fs.existsSync(gitRepoPath)) {
+  if (!folderExists) {
     const parentDir = path.dirname(projectExecDir);
     const repoName = path.basename(projectExecDir);
     const cloneCmd = `sudo git clone ${project.repo} ${repoName}`;
@@ -191,8 +182,8 @@ app.post("/webhook", (req, res) => {
       error: null,
     });
 
-    console.log(`🚀 Cloning ${project.repo} into ${projectExecDir}`);
-  } else {
+    console.log(`🚀 Cloning new repo into ${projectExecDir}`);
+  } else if (isGitRepo) {
     const pullCmd = "git pull";
     commandsToExecute.unshift(pullCmd);
     workingDirectory = projectExecDir;
@@ -204,11 +195,24 @@ app.post("/webhook", (req, res) => {
       error: null,
     });
 
-    console.log(`🚀 Pulling latest changes in ${projectExecDir}`);
+    console.log(`📦 Pulling updates in ${projectExecDir}`);
+  } else {
+    const skipMsg = `⚠️ Directory ${projectExecDir} exists but is not a Git repository. Skipping clone and pull.`;
+    console.warn(skipMsg);
+    workingDirectory = projectExecDir;
+
+    logEntry.output.push({
+      command: "SKIPPED",
+      stdout: "",
+      stderr: skipMsg,
+      error: "Not a Git repository",
+    });
+
+    save(LOGS_FILE, logs);
+    return res.status(200).send("Skipped: Not a Git repo.");
   }
 
   let commandIndex = 0;
-
   const executeNextCommand = () => {
     if (commandIndex >= commandsToExecute.length) {
       const logIdx = logs.findIndex((l) => l.time === logEntry.time);
@@ -216,7 +220,7 @@ app.post("/webhook", (req, res) => {
         logs[logIdx].status = "completed";
         save(LOGS_FILE, logs);
       }
-      console.log(`🎉 All commands for ${project.repo} finished.`);
+      console.log(`✅ All commands for ${project.repo} completed.`);
       return;
     }
 
@@ -236,12 +240,14 @@ app.post("/webhook", (req, res) => {
           stderr,
           error: err ? err.message : null,
         });
+
         if (err) {
           logs[logIdx].status = "failed";
           console.error(`❌ ${cmd}:`, err.message);
         } else {
-          console.log(`✅ ${cmd}: Success`);
+          console.log(`✅ ${cmd}:`, stdout.trim());
         }
+
         save(LOGS_FILE, logs);
       }
 
@@ -250,10 +256,11 @@ app.post("/webhook", (req, res) => {
     });
 
     child.stdout.on("data", (data) => {
-      console.log(`[stdout] ${cmd}: ${data}`);
+      console.log(`[stdout] ${cmd}: ${data.toString()}`);
     });
+
     child.stderr.on("data", (data) => {
-      console.error(`[stderr] ${cmd}: ${data}`);
+      console.error(`[stderr] ${cmd}: ${data.toString()}`);
     });
   };
 
@@ -262,5 +269,5 @@ app.post("/webhook", (req, res) => {
 });
 
 app.listen(PORT, () =>
-  console.log(`✅ CI/CD Server running at http://localhost:${PORT}`)
+  console.log(`🚀 CI/CD server running on http://localhost:${PORT}`)
 );
